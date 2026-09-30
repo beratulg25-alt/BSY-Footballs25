@@ -1,0 +1,1113 @@
+D Futbol Oyunu">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes"><!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#030712">
+    <meta name="description" content="AETHARION FOOTBALL - Gelişmiş 2
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>AETHARION FOOTBALL</title>
+    <!-- Tailwind CSS for UI HUD -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            box-sizing: border-box;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #030712;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: #ffffff;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background-color: #064e3b;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.88);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .btn-touch {
+            transition: transform 0.05s ease, filter 0.05s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        }
+        .btn-touch:active {
+            transform: scale(0.92);
+            filter: brightness(1.25);
+        }
+        .key-badge {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            padding: 2px 6px;
+            font-family: monospace;
+            font-weight: bold;
+            transition: background 0.1s, transform 0.1s;
+        }
+        .key-badge.active {
+            background: #2563eb;
+            color: #ffffff;
+            border-color: #60a5fa;
+            transform: scale(1.1);
+        }
+        .glow-blue { box-shadow: 0 0 25px rgba(37, 99, 235, 0.6); }
+        .text-glow { text-shadow: 0 0 12px rgba(255, 255, 255, 0.6); }
+
+        @keyframes pulseGoal {
+            0% { transform: scale(0.8); opacity: 0; }
+            50% { transform: scale(1.15); opacity: 1; }
+            100% { transform: scale(1.0); opacity: 1; }
+        }
+        .animate-goal { animation: pulseGoal 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+    </style>
+</head>
+<body class="flex flex-col h-screen w-screen overflow-hidden select-none bg-slate-950">
+
+    <div id="canvas-container" class="relative w-full h-full flex items-center justify-center overflow-hidden">
+        <!-- Main Game Canvas -->
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Splash Loading Screen -->
+        <div id="splashScreen" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950 z-50 transition-opacity duration-500">
+            <div class="relative flex flex-col items-center">
+                <div class="w-24 h-24 rounded-2xl bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-600 flex items-center justify-center shadow-2xl mb-4 border border-cyan-300/40 glow-blue">
+                    <span class="text-4xl font-black text-white tracking-wider">AF</span>
+                </div>
+                <h1 class="text-3xl md:text-5xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-blue-500">AETHARION FOOTBALL</h1>
+                <p class="text-xs md:text-sm text-cyan-300/80 mt-2 font-semibold tracking-wide">MOTOR YÜKLENİYOR...</p>
+                <div class="w-56 h-2.5 bg-slate-800 rounded-full mt-6 overflow-hidden border border-slate-700/80">
+                    <div id="loadingBar" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 w-0 transition-all duration-300"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- In-Game HUD -->
+        <div id="gameHUD" class="absolute inset-0 pointer-events-none hidden flex-col justify-between p-3 md:p-5 z-20">
+            <!-- Top Scoreboard -->
+            <div class="flex items-center justify-between w-full max-w-4xl mx-auto pointer-events-auto">
+                <div class="glass-panel px-4 py-2 rounded-2xl flex items-center gap-3 border-l-4 border-l-blue-500">
+                    <div class="font-black text-blue-400 text-sm md:text-lg">MAVİ</div>
+                    <div id="hudScoreBlue" class="text-2xl md:text-3xl font-black text-white">0</div>
+                </div>
+
+                <div class="glass-panel px-5 py-2 rounded-2xl flex flex-col items-center border-b-2 border-b-cyan-400">
+                    <span id="hudTimer" class="text-xl md:text-2xl font-black text-cyan-300 font-mono">01:30</span>
+                    <span id="hudModeName" class="text-[10px] font-bold text-slate-400 tracking-wider">LİG MAÇI</span>
+                </div>
+
+                <div class="glass-panel px-4 py-2 rounded-2xl flex items-center gap-3 border-r-4 border-r-red-500">
+                    <div id="hudScoreRed" class="text-2xl md:text-3xl font-black text-white">0</div>
+                    <div class="font-black text-red-400 text-sm md:text-lg">RAKİP</div>
+                </div>
+            </div>
+
+            <!-- Desktop Keyboard Shortcut Helper HUD Bar -->
+            <div id="desktopKeyHUD" class="hidden md:flex absolute top-4 left-4 glass-panel px-3 py-2 rounded-xl items-center gap-3 text-xs text-slate-300 pointer-events-none border border-slate-700">
+                <div class="flex items-center gap-1"><span id="keyW" class="key-badge">W</span><span id="keyA" class="key-badge">A</span><span id="keyS" class="key-badge">S</span><span id="keyD" class="key-badge">D</span> <span class="text-[10px] text-slate-400">Hareket</span></div>
+                <div class="w-px h-4 bg-slate-700"></div>
+                <div class="flex items-center gap-1"><span id="keyE" class="key-badge">E</span> <span class="text-[10px] text-slate-400">Pas</span></div>
+                <div class="w-px h-4 bg-slate-700"></div>
+                <div class="flex items-center gap-1"><span id="keySpace" class="key-badge">SPACE</span> <span class="text-[10px] text-slate-400">Şut</span></div>
+                <div class="w-px h-4 bg-slate-700"></div>
+                <div class="flex items-center gap-1"><span id="keyShift" class="key-badge">SHIFT</span> <span class="text-[10px] text-slate-400">Sprint</span></div>
+            </div>
+
+            <!-- Shot Power Meter Overlay -->
+            <div id="shootPowerContainer" class="absolute left-1/2 bottom-28 -translate-x-1/2 w-48 h-4 glass-panel rounded-full p-0.5 overflow-hidden hidden border border-amber-400/50">
+                <div id="shootPowerBar" class="h-full bg-gradient-to-r from-green-400 via-yellow-400 to-red-500 rounded-full w-0"></div>
+            </div>
+
+            <!-- Pause Button -->
+            <button id="btnPause" class="absolute top-4 right-4 pointer-events-auto glass-panel w-10 h-10 rounded-full flex items-center justify-center text-white active:scale-95 border border-white/20">
+                <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            </button>
+
+            <!-- Touch Controls HUD Container (Mobile View) -->
+            <div id="touchControlsContainer" class="w-full h-full absolute inset-0 pointer-events-none flex justify-between items-end p-4 md:p-6">
+                <!-- Virtual Joystick Base -->
+                <div id="joystickZone" class="relative w-36 h-36 md:w-44 md:h-44 rounded-full bg-white/5 border-2 border-white/20 pointer-events-auto flex items-center justify-center backdrop-blur-sm">
+                    <div id="joystickKnob" class="absolute w-14 h-14 md:w-18 md:h-18 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 border-2 border-white/80 shadow-lg glow-blue pointer-events-none"></div>
+                </div>
+
+                <!-- Right Action Buttons -->
+                <div id="actionButtonsZone" class="pointer-events-auto grid grid-cols-2 gap-3 mb-2 mr-2">
+                    <button id="btnPass" class="btn-touch w-16 h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-black text-sm border-2 border-blue-300/40 flex flex-col items-center justify-center">
+                        PAS
+                        <span class="text-[9px] text-blue-200 font-normal hidden md:inline">[E]</span>
+                    </button>
+                    <button id="btnShoot" class="btn-touch w-16 h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-red-600 to-rose-700 text-white font-black text-sm border-2 border-red-300/40 flex flex-col items-center justify-center">
+                        ŞUT
+                        <span class="text-[9px] text-red-200 font-normal hidden md:inline">[SPACE]</span>
+                    </button>
+                    <button id="btnDribble" class="btn-touch w-16 h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 text-white font-black text-xs border-2 border-amber-300/40 flex flex-col items-center justify-center">
+                        ÇALIM
+                    </button>
+                    <button id="btnSprint" class="btn-touch w-16 h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-emerald-500 to-teal-700 text-white font-black text-xs border-2 border-emerald-300/40 flex flex-col items-center justify-center">
+                        HIZLAN
+                        <span class="text-[9px] text-emerald-200 font-normal hidden md:inline">[SHIFT]</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Menu -->
+        <div id="mainMenu" class="absolute inset-0 glass-panel flex flex-col justify-between p-6 z-40">
+            <div class="flex items-center justify-between w-full max-w-5xl mx-auto">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-black text-xl border border-cyan-300/30 glow-blue">AF</div>
+                    <div>
+                        <h1 class="text-xl md:text-2xl font-black text-cyan-300 tracking-wider">AETHARION FOOTBALL</h1>
+                        <p class="text-xs text-slate-400">Gelişmiş Mobil & Klavye Futbol Oyunu</p>
+                    </div>
+                </div>
+
+                <div class="glass-panel px-4 py-2 rounded-xl flex items-center gap-3 border-amber-500/30">
+                    <div class="text-right">
+                        <div class="text-xs text-amber-400 font-bold">SEVİYE <span id="playerLevelText">1</span></div>
+                        <div class="text-[10px] text-slate-400"><span id="playerXPText">0</span> XP</div>
+                    </div>
+                    <div id="playerLevelBadge" class="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-400 flex items-center justify-center font-black text-amber-300 text-sm shadow-md">
+                        1
+                    </div>
+                </div>
+            </div>
+
+            <!-- Game Mode Options -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl w-full mx-auto my-auto">
+                <button id="menuBtnOyna" class="btn-touch glass-panel p-5 rounded-2xl flex flex-col items-center text-center hover:bg-slate-800/80 border-cyan-500/40 group">
+                    <div class="w-14 h-14 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                        <svg class="w-8 h-8 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    </div>
+                    <span class="text-xl font-black text-white">5v5 MAÇ</span>
+                    <span class="text-xs text-slate-400 mt-1">90 Saniyelik Hızlı Maç</span>
+                </button>
+
+                <button id="menuBtnPenalti" class="btn-touch glass-panel p-5 rounded-2xl flex flex-col items-center text-center hover:bg-slate-800/80 border-rose-500/40 group">
+                    <div class="w-14 h-14 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                        <svg class="w-8 h-8 fill-current" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+                    </div>
+                    <span class="text-xl font-black text-white">PENALTI</span>
+                    <span class="text-xs text-slate-400 mt-1">5'li Penaltı Atışları</span>
+                </button>
+
+                <button id="menuBtnAntrenman" class="btn-touch glass-panel p-5 rounded-2xl flex flex-col items-center text-center hover:bg-slate-800/80 border-emerald-500/40 group">
+                    <div class="w-14 h-14 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                        <svg class="w-8 h-8 fill-current" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zm0 9L4.21 7.1 12 3.2 19.79 7.1 12 11zm0 2.5L4.21 9.6 2 10.7l10 5 10-5-2.21-1.1L12 13.5z"/></svg>
+                    </div>
+                    <span class="text-xl font-black text-white">ANTRENMAN</span>
+                    <span class="text-xs text-slate-400 mt-1">Serbest Çalışma Sahası</span>
+                </button>
+            </div>
+
+            <!-- Footer Controls Info & Settings -->
+            <div class="flex justify-between items-center w-full max-w-5xl mx-auto">
+                <button id="menuBtnAyarlar" class="btn-touch glass-panel px-4 py-2.5 rounded-xl flex items-center gap-2 text-slate-300 text-xs font-bold border-slate-700">
+                    <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.95s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                    AYARLAR
+                </button>
+
+                <div class="text-slate-500 text-[10px] tracking-wider font-semibold">
+                    AETHARION FOOTBALL v1.0.2 • KLAVYE & DOKUNMATİK UYUMLU
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div id="settingsModal" class="absolute inset-0 glass-panel flex items-center justify-center z-50 hidden">
+            <div class="bg-slate-900 border border-slate-700 p-6 rounded-3xl max-w-sm w-full shadow-2xl flex flex-col gap-5">
+                <h2 class="text-2xl font-black text-center text-cyan-300">AYARLAR</h2>
+
+                <div class="flex items-center justify-between">
+                    <span class="text-sm font-bold text-slate-300">Ses Efektleri</span>
+                    <button id="toggleAudioBtn" class="px-4 py-1.5 rounded-full bg-cyan-600 font-bold text-xs text-white shadow-md">AÇIK</button>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <span class="text-sm font-bold text-slate-300">Performans Modu</span>
+                    <button id="togglePerfBtn" class="px-4 py-1.5 rounded-full bg-emerald-600 font-bold text-xs text-white shadow-md">KAPALI</button>
+                </div>
+
+                <div class="flex flex-col gap-2 mt-4">
+                    <button id="btnResumeGame" class="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 font-black text-white shadow-lg">OYUNA DÖN</button>
+                    <button id="btnQuitToMenu" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 font-bold text-slate-300 text-sm">ANA MENÜYE ÇIK</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Match Statistics Modal -->
+        <div id="statsModal" class="absolute inset-0 glass-panel flex items-center justify-center z-50 hidden p-4">
+            <div class="bg-slate-900 border border-slate-700 p-6 rounded-3xl max-w-lg w-full shadow-2xl flex flex-col gap-4">
+                <div class="text-center">
+                    <h2 id="matchResultTitle" class="text-3xl font-black text-amber-400">MAÇ BİTTİ</h2>
+                    <p id="matchResultSub" class="text-sm text-slate-400">Maç İstatistikleri & Ödüller</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 bg-slate-950/60 p-4 rounded-2xl border border-slate-800 text-xs">
+                    <div class="flex justify-between border-b border-slate-800 pb-1"><span class="text-slate-400">Atılan Gol:</span><span id="stGoals" class="font-bold text-cyan-300">0</span></div>
+                    <div class="flex justify-between border-b border-slate-800 pb-1"><span class="text-slate-400">Şutlar / İsabetli:</span><span id="stShots" class="font-bold text-cyan-300">0 / 0</span></div>
+                    <div class="flex justify-between border-b border-slate-800 pb-1"><span class="text-slate-400">Pas / Başarılı:</span><span id="stPasses" class="font-bold text-cyan-300">0 / 0</span></div>
+                    <div class="flex justify-between border-b border-slate-800 pb-1"><span class="text-slate-400">Başarılı Çalım:</span><span id="stDribbles" class="font-bold text-cyan-300">0</span></div>
+                    <div class="flex justify-between border-b border-slate-800 pb-1"><span class="text-slate-400">Topa Sahip Olma:</span><span id="stPossession" class="font-bold text-cyan-300">%50</span></div>
+                </div>
+
+                <div class="bg-gradient-to-r from-amber-500/20 to-yellow-500/10 border border-amber-500/40 p-3 rounded-2xl flex items-center justify-between">
+                    <div>
+                        <div class="text-xs font-bold text-amber-300">KAZANILAN XP</div>
+                        <div id="stXPEarned" class="text-xl font-black text-amber-400">+150 XP</div>
+                    </div>
+                    <div id="stLevelUpText" class="text-xs font-black text-emerald-400 hidden animate-bounce">SEVİYE ATLADIN!</div>
+                </div>
+
+                <button id="btnStatsClose" class="w-full py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 font-black text-white mt-2 shadow-lg">TAMAM</button>
+            </div>
+        </div>
+
+        <!-- Goal Banner -->
+        <div id="goalBanner" class="absolute inset-0 flex items-center justify-center pointer-events-none hidden z-40">
+            <div class="text-6xl md:text-8xl font-black text-yellow-400 tracking-widest text-glow animate-goal">
+                G O L !
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game Engine Architecture & State Management
+        const GAME = {
+            width: 1280,
+            height: 720,
+            canvas: null,
+            ctx: null,
+            mode: 'MENU',
+            audioEnabled: true,
+            perfMode: false,
+            timer: 90,
+            timerInterval: null,
+            paused: false,
+            scoreBlue: 0,
+            scoreRed: 0,
+            user: {
+                xp: 0,
+                level: 1,
+                speed: 1.0,
+                shot: 1.0,
+                pass: 1.0,
+                dribble: 1.0
+            },
+            stats: {
+                goals: 0,
+                shots: 0,
+                shotsOnTarget: 0,
+                passes: 0,
+                passesAcc: 0,
+                dribbles: 0,
+                possessionBlue: 0,
+                possessionTotal: 1
+            }
+        };
+
+        const PITCH = {
+            width: 1200,
+            height: 660,
+            border: 40,
+            goalWidth: 140,
+            goalDepth: 35
+        };
+
+        // Low-latency Web Audio Synthesizer
+        const AudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            if (!GAME.audioEnabled || !AudioCtx) return;
+            try {
+                if (AudioCtx.state === 'suspended') AudioCtx.resume();
+                const osc = AudioCtx.createOscillator();
+                const gain = AudioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(AudioCtx.destination);
+                const now = AudioCtx.currentTime;
+
+                if (type === 'kick') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(140, now);
+                    osc.frequency.exponentialRampToValueAtTime(30, now + 0.12);
+                    gain.gain.setValueAtTime(0.8, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+                    osc.start(now);
+                    osc.stop(now + 0.12);
+                } else if (type === 'whistle') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(1800, now);
+                    osc.frequency.setValueAtTime(2200, now + 0.1);
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                    osc.start(now);
+                    osc.stop(now + 0.35);
+                } else if (type === 'goal') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(280, now);
+                    osc.frequency.linearRampToValueAtTime(560, now + 0.4);
+                    gain.gain.setValueAtTime(0.5, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+                    osc.start(now);
+                    osc.stop(now + 0.6);
+                } else if (type === 'post') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(420, now);
+                    osc.frequency.exponentialRampToValueAtTime(90, now + 0.18);
+                    gain.gain.setValueAtTime(0.6, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+                    osc.start(now);
+                    osc.stop(now + 0.18);
+                }
+            } catch (e) { }
+        }
+
+        // Fast Physics Objects
+        class Ball {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = 0;
+                this.vy = 0;
+                this.radius = 8;
+                this.friction = 0.982;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vx *= this.friction;
+                this.vy *= this.friction;
+
+                const minX = PITCH.border;
+                const maxX = GAME.width - PITCH.border;
+                const minY = PITCH.border;
+                const maxY = GAME.height - PITCH.border;
+                const goalYMin = GAME.height / 2 - PITCH.goalWidth / 2;
+                const goalYMax = GAME.height / 2 + PITCH.goalWidth / 2;
+
+                // Pitch Out of Bounds
+                if (this.y < minY) { this.y = minY; this.vy *= -0.7; }
+                if (this.y > maxY) { this.y = maxY; this.vy *= -0.7; }
+
+                if (this.x < minX) {
+                    if (this.y > goalYMin && this.y < goalYMax) {
+                        if (this.x < minX - PITCH.goalDepth) { this.x = minX - PITCH.goalDepth; this.vx *= -0.3; }
+                    } else {
+                        this.x = minX; this.vx *= -0.7;
+                    }
+                }
+                if (this.x > maxX) {
+                    if (this.y > goalYMin && this.y < goalYMax) {
+                        if (this.x > maxX + PITCH.goalDepth) { this.x = maxX + PITCH.goalDepth; this.vx *= -0.3; }
+                    } else {
+                        this.x = maxX; this.vx *= -0.7;
+                    }
+                }
+
+                this.checkPostCollision(minX, goalYMin);
+                this.checkPostCollision(minX, goalYMax);
+                this.checkPostCollision(maxX, goalYMin);
+                this.checkPostCollision(maxX, goalYMax);
+            }
+            checkPostCollision(px, py) {
+                const dx = this.x - px;
+                const dy = this.y - py;
+                const dist = Math.hypot(dx, dy);
+                if (dist < this.radius + 6) {
+                    playSound('post');
+                    const angle = Math.atan2(dy, dx);
+                    const speed = Math.hypot(this.vx, this.vy) * 0.85;
+                    this.vx = Math.cos(angle) * (speed + 2);
+                    this.vy = Math.sin(angle) * (speed + 2);
+                }
+            }
+            draw(ctx) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(this.x + 2, this.y + 3, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#0f172a';
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        class Player {
+            constructor(x, y, team, role, number) {
+                this.x = x;
+                this.y = y;
+                this.baseX = x;
+                this.baseY = y;
+                this.team = team;
+                this.role = role;
+                this.number = number;
+                this.radius = 13;
+                this.speed = team === 'BLUE' ? 2.95 * GAME.user.speed : 2.8;
+                this.vx = 0;
+                this.vy = 0;
+                this.angle = 0;
+                this.isUserControlled = false;
+                this.dribbleSpin = 0;
+            }
+
+            update(ball, dirVector, isSprinting) {
+                if (this.isUserControlled) {
+                    let moveSpeed = this.speed;
+                    if (isSprinting) moveSpeed *= 1.35;
+
+                    this.vx = dirVector.x * moveSpeed;
+                    this.vy = dirVector.y * moveSpeed;
+
+                    if (dirVector.x !== 0 || dirVector.y !== 0) {
+                        this.angle = Math.atan2(dirVector.y, dirVector.x);
+                    }
+
+                    if (this.dribbleSpin > 0) {
+                        this.dribbleSpin -= 0.2;
+                        this.angle += 0.4;
+                    }
+                } else {
+                    this.aiBehavior(ball);
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                this.x = Math.max(PITCH.border + 10, Math.min(GAME.width - PITCH.border - 10, this.x));
+                this.y = Math.max(PITCH.border + 10, Math.min(GAME.height - PITCH.border - 10, this.y));
+            }
+
+            aiBehavior(ball) {
+                const distToBall = Math.hypot(ball.x - this.x, ball.y - this.y);
+
+                if (this.role === 'GK') {
+                    const goalCenterY = GAME.height / 2;
+                    const targetX = this.team === 'BLUE' ? PITCH.border + 25 : GAME.width - PITCH.border - 25;
+                    let targetY = ball.y;
+                    targetY = Math.max(goalCenterY - 50, Math.min(goalCenterY + 50, targetY));
+
+                    const dx = targetX - this.x;
+                    const dy = targetY - this.y;
+                    this.vx = dx * 0.08;
+                    this.vy = dy * 0.08;
+                    this.angle = Math.atan2(ball.y - this.y, ball.x - this.x);
+                } else {
+                    if (this.team === 'RED') {
+                        if (distToBall < 200) {
+                            const dx = ball.x - this.x;
+                            const dy = ball.y - this.y;
+                            const angle = Math.atan2(dy, dx);
+                            this.vx = Math.cos(angle) * (this.speed * 0.88);
+                            this.vy = Math.sin(angle) * (this.speed * 0.88);
+                            this.angle = angle;
+                        } else {
+                            const dx = this.baseX - this.x;
+                            const dy = this.baseY - this.y;
+                            this.vx = dx * 0.03;
+                            this.vy = dy * 0.03;
+                        }
+                    } else {
+                        const dx = (ball.x + (this.baseX - 300)) - this.x;
+                        const dy = (ball.y + (this.baseY - 360)) - this.y;
+                        this.vx = dx * 0.03;
+                        this.vy = dy * 0.03;
+                    }
+                }
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(this.x + 2, this.y + 3, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.team === 'BLUE' ? '#2563eb' : '#dc2626';
+                ctx.fill();
+                ctx.lineWidth = 2.5;
+                ctx.strokeStyle = this.isUserControlled ? '#fbbf24' : '#ffffff';
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(this.x + Math.cos(this.angle) * (this.radius + 6), this.y + Math.sin(this.angle) * (this.radius + 6));
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 10px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.number.toString(), this.x, this.y);
+
+                if (this.isUserControlled) {
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y - this.radius - 8);
+                    ctx.lineTo(this.x - 5, this.y - this.radius - 15);
+                    ctx.lineTo(this.x + 5, this.y - this.radius - 15);
+                    ctx.closePath();
+                    ctx.fillStyle = '#fbbf24';
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            }
+        }
+
+        let ball = new Ball(GAME.width / 2, GAME.height / 2);
+        let players = [];
+        let userControlledPlayer = null;
+
+        // KEYBOARD ENGINE STATE BUFFER
+        const keyState = {
+            KeyW: false, KeyA: false, KeyS: false, KeyD: false,
+            ArrowUp: false, ArrowLeft: false, ArrowDown: false, ArrowRight: false,
+            KeyE: false, Space: false, ShiftLeft: false, ShiftRight: false
+        };
+
+        const touchState = {
+            joyActive: false,
+            joyVector: { x: 0, y: 0 },
+            joyTouchId: null,
+            shootCharging: false,
+            shootPower: 0,
+            sprint: false
+        };
+
+        function initTeams() {
+            players = [];
+            const bluePos = [
+                { x: 100, y: 360, role: 'GK', num: 1 },
+                { x: 300, y: 220, role: 'DEF', num: 2 },
+                { x: 300, y: 500, role: 'DEF', num: 3 },
+                { x: 480, y: 360, role: 'MID', num: 8 },
+                { x: 580, y: 360, role: 'FWD', num: 9 }
+            ];
+            bluePos.forEach(p => {
+                players.push(new Player(p.x, p.y, 'BLUE', p.role, p.num));
+            });
+
+            const redPos = [
+                { x: 1180, y: 360, role: 'GK', num: 1 },
+                { x: 980, y: 220, role: 'DEF', num: 4 },
+                { x: 980, y: 500, role: 'DEF', num: 5 },
+                { x: 800, y: 360, role: 'MID', num: 6 },
+                { x: 700, y: 360, role: 'FWD', num: 10 }
+            ];
+            redPos.forEach(p => {
+                players.push(new Player(p.x, p.y, 'RED', p.role, p.num));
+            });
+
+            userControlledPlayer = players[4];
+            userControlledPlayer.isUserControlled = true;
+        }
+
+        function autoSwitchPlayer() {
+            if (GAME.mode !== 'MATCH' && GAME.mode !== 'TRAINING') return;
+            let closest = null;
+            let minDist = Infinity;
+
+            players.filter(p => p.team === 'BLUE').forEach(p => {
+                const d = Math.hypot(ball.x - p.x, ball.y - p.y);
+                if (d < minDist) {
+                    minDist = d;
+                    closest = p;
+                }
+            });
+
+            if (closest && closest !== userControlledPlayer) {
+                if (userControlledPlayer) userControlledPlayer.isUserControlled = false;
+                userControlledPlayer = closest;
+                userControlledPlayer.isUserControlled = true;
+            }
+        }
+
+        function getMovementVector() {
+            let vx = 0;
+            let vy = 0;
+
+            if (keyState.KeyW || keyState.ArrowUp) vy -= 1;
+            if (keyState.KeyS || keyState.ArrowDown) vy += 1;
+            if (keyState.KeyA || keyState.ArrowLeft) vx -= 1;
+            if (keyState.KeyD || keyState.ArrowRight) vx += 1;
+
+            if (vx !== 0 || vy !== 0) {
+                const len = Math.hypot(vx, vy);
+                return { x: vx / len, y: vy / len };
+            }
+
+            return touchState.joyVector;
+        }
+
+        function setupKeyboardEngine() {
+            window.addEventListener('keydown', (e) => {
+                if (e.code in keyState) {
+                    keyState[e.code] = true;
+                    updateKeyBadgeUI(e.code, true);
+
+                    // Immediate actions
+                    if (e.code === 'KeyE') {
+                        executePass();
+                    } else if (e.code === 'Space' && !touchState.shootCharging) {
+                        touchState.shootCharging = true;
+                        touchState.shootPower = 0;
+                        document.getElementById('shootPowerContainer').classList.remove('hidden');
+                    }
+
+                    // Prevent scrolling page with space/arrows
+                    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+                        e.preventDefault();
+                    }
+                }
+            });
+
+            window.addEventListener('keyup', (e) => {
+                if (e.code in keyState) {
+                    keyState[e.code] = false;
+                    updateKeyBadgeUI(e.code, false);
+
+                    if (e.code === 'Space' && touchState.shootCharging) {
+                        executeShoot(touchState.shootPower);
+                        touchState.shootCharging = false;
+                        document.getElementById('shootPowerContainer').classList.add('hidden');
+                        document.getElementById('shootPowerBar').style.width = '0%';
+                    }
+                }
+            });
+        }
+
+        function updateKeyBadgeUI(code, active) {
+            let badgeId = null;
+            if (code === 'KeyW') badgeId = 'keyW';
+            else if (code === 'KeyA') badgeId = 'keyA';
+            else if (code === 'KeyS') badgeId = 'keyS';
+            else if (code === 'KeyD') badgeId = 'keyD';
+            else if (code === 'KeyE') badgeId = 'keyE';
+            else if (code === 'Space') badgeId = 'keySpace';
+            else if (code === 'ShiftLeft' || code === 'ShiftRight') badgeId = 'keyShift';
+
+            if (badgeId) {
+                const el = document.getElementById(badgeId);
+                if (el) {
+                    if (active) el.classList.add('active');
+                    else el.classList.remove('active');
+                }
+            }
+        }
+
+        function executePass() {
+            if (!userControlledPlayer) return;
+            playSound('kick');
+            GAME.stats.passes++;
+
+            const passAngle = userControlledPlayer.angle;
+            const passPower = 7.8 * GAME.user.pass;
+            ball.vx = Math.cos(passAngle) * passPower;
+            ball.vy = Math.sin(passAngle) * passPower;
+            GAME.stats.passesAcc++;
+        }
+
+        function executeShoot(power) {
+            if (!userControlledPlayer) return;
+            playSound('kick');
+            GAME.stats.shots++;
+
+            const shotAngle = userControlledPlayer.angle;
+            const actualPower = (5.5 + power * 9.5) * GAME.user.shot;
+            ball.vx = Math.cos(shotAngle) * actualPower;
+            ball.vy = Math.sin(shotAngle) * actualPower;
+
+            if (Math.abs(shotAngle) < 1.2) GAME.stats.shotsOnTarget++;
+        }
+
+        function executeDribble() {
+            if (!userControlledPlayer) return;
+            playSound('kick');
+            userControlledPlayer.dribbleSpin = 3.14;
+            GAME.stats.dribbles++;
+            ball.vx += Math.cos(userControlledPlayer.angle) * 4.2;
+            ball.vy += Math.sin(userControlledPlayer.angle) * 4.2;
+        }
+
+        function setupTouchEngine() {
+            const joyZone = document.getElementById('joystickZone');
+            const joyKnob = document.getElementById('joystickKnob');
+
+            joyZone.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const touch = e.changedTouches[0];
+                touchState.joyActive = true;
+                touchState.joyTouchId = touch.identifier;
+                updateJoystick(touch, joyZone, joyKnob);
+            }, { passive: false });
+
+            joyZone.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                for (let touch of e.changedTouches) {
+                    if (touch.identifier === touchState.joyTouchId) {
+                        updateJoystick(touch, joyZone, joyKnob);
+                    }
+                }
+            }, { passive: false });
+
+            const endJoy = (e) => {
+                for (let touch of e.changedTouches) {
+                    if (touch.identifier === touchState.joyTouchId) {
+                        touchState.joyActive = false;
+                        touchState.joyVector = { x: 0, y: 0 };
+                        joyKnob.style.transform = `translate(0px, 0px)`;
+                    }
+                }
+            };
+            joyZone.addEventListener('touchend', endJoy);
+            joyZone.addEventListener('touchcancel', endJoy);
+
+            function updateJoystick(touch, zone, knob) {
+                const rect = zone.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+
+                let dx = touch.clientX - centerX;
+                let dy = touch.clientY - centerY;
+                const maxLen = rect.width / 2;
+                const len = Math.hypot(dx, dy);
+
+                if (len > maxLen) {
+                    dx = (dx / len) * maxLen;
+                    dy = (dy / len) * maxLen;
+                }
+
+                knob.style.transform = `translate(${dx}px, ${dy}px)`;
+                touchState.joyVector = { x: dx / maxLen, y: dy / maxLen };
+            }
+
+            document.getElementById('btnPass').onclick = executePass;
+            document.getElementById('btnDribble').onclick = executeDribble;
+
+            const btnShoot = document.getElementById('btnShoot');
+            btnShoot.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                touchState.shootCharging = true;
+                touchState.shootPower = 0;
+                document.getElementById('shootPowerContainer').classList.remove('hidden');
+            });
+
+            btnShoot.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                if (touchState.shootCharging) {
+                    executeShoot(touchState.shootPower);
+                    touchState.shootCharging = false;
+                    document.getElementById('shootPowerContainer').classList.add('hidden');
+                    document.getElementById('shootPowerBar').style.width = '0%';
+                }
+            });
+
+            const btnSprint = document.getElementById('btnSprint');
+            btnSprint.addEventListener('touchstart', (e) => { e.preventDefault(); touchState.sprint = true; });
+            btnSprint.addEventListener('touchend', (e) => { e.preventDefault(); touchState.sprint = false; });
+        }
+
+        function checkGoal() {
+            const goalYMin = GAME.height / 2 - PITCH.goalWidth / 2;
+            const goalYMax = GAME.height / 2 + PITCH.goalWidth / 2;
+
+            if (ball.y > goalYMin && ball.y < goalYMax) {
+                if (ball.x < PITCH.border - 5) {
+                    triggerGoal('RED');
+                } else if (ball.x > GAME.width - PITCH.border + 5) {
+                    triggerGoal('BLUE');
+                }
+            }
+        }
+
+        function triggerGoal(scoringTeam) {
+            playSound('goal');
+            if (scoringTeam === 'BLUE') {
+                GAME.scoreBlue++;
+                GAME.stats.goals++;
+                document.getElementById('hudScoreBlue').innerText = GAME.scoreBlue;
+            } else {
+                GAME.scoreRed++;
+                document.getElementById('hudScoreRed').innerText = GAME.scoreRed;
+            }
+
+            const goalBanner = document.getElementById('goalBanner');
+            goalBanner.classList.remove('hidden');
+            setTimeout(() => {
+                goalBanner.classList.add('hidden');
+                ball.x = GAME.width / 2;
+                ball.y = GAME.height / 2;
+                ball.vx = 0;
+                ball.vy = 0;
+                initTeams();
+            }, 1800);
+        }
+
+        function handleBallDribbleCollision() {
+            players.forEach(p => {
+                const dist = Math.hypot(ball.x - p.x, ball.y - p.y);
+                if (dist < p.radius + ball.radius + 2) {
+                    const angle = Math.atan2(ball.y - p.y, ball.x - p.x);
+                    const push = 2.2;
+                    ball.vx = Math.cos(angle) * push + p.vx * 0.8;
+                    ball.vy = Math.sin(angle) * push + p.vy * 0.8;
+
+                    if (p.team === 'BLUE') GAME.stats.possessionBlue++;
+                    GAME.stats.possessionTotal++;
+                }
+            });
+        }
+
+        function drawPitch(ctx) {
+            const stripeWidth = (GAME.width - PITCH.border * 2) / 10;
+            for (let i = 0; i < 10; i++) {
+                ctx.fillStyle = (i % 2 === 0) ? '#15803d' : '#16a34a';
+                ctx.fillRect(PITCH.border + i * stripeWidth, PITCH.border, stripeWidth, GAME.height - PITCH.border * 2);
+            }
+
+            ctx.save();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 3;
+
+            ctx.strokeRect(PITCH.border, PITCH.border, GAME.width - PITCH.border * 2, GAME.height - PITCH.border * 2);
+
+            ctx.beginPath();
+            ctx.moveTo(GAME.width / 2, PITCH.border);
+            ctx.lineTo(GAME.width / 2, GAME.height - PITCH.border);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(GAME.width / 2, GAME.height / 2, 70, 0, Math.PI * 2);
+            ctx.stroke();
+
+            const goalYMin = GAME.height / 2 - PITCH.goalWidth / 2;
+            ctx.strokeRect(PITCH.border, GAME.height / 2 - 120, 140, 240);
+            ctx.strokeRect(GAME.width - PITCH.border - 140, GAME.height / 2 - 120, 140, 240);
+
+            ctx.fillStyle = 'rgba(255,255,255,0.18)';
+            ctx.fillRect(PITCH.border - PITCH.goalDepth, goalYMin, PITCH.goalDepth, PITCH.goalWidth);
+            ctx.strokeRect(PITCH.border - PITCH.goalDepth, goalYMin, PITCH.goalDepth, PITCH.goalWidth);
+
+            ctx.fillRect(GAME.width - PITCH.border, goalYMin, PITCH.goalDepth, PITCH.goalWidth);
+            ctx.strokeRect(GAME.width - PITCH.border, goalYMin, PITCH.goalDepth, PITCH.goalWidth);
+
+            ctx.restore();
+        }
+
+        function updateGame() {
+            if (GAME.paused) return;
+
+            if (touchState.shootCharging) {
+                touchState.shootPower += 0.035;
+                if (touchState.shootPower > 1) touchState.shootPower = 0;
+                document.getElementById('shootPowerBar').style.width = `${touchState.shootPower * 100}%`;
+            }
+
+            if (GAME.mode === 'MATCH' || GAME.mode === 'TRAINING' || GAME.mode === 'PENALTI') {
+                autoSwitchPlayer();
+                ball.update();
+
+                const dirVec = getMovementVector();
+                const isSprint = keyState.ShiftLeft || keyState.ShiftRight || touchState.sprint;
+
+                players.forEach(p => p.update(ball, dirVec, isSprint));
+                handleBallDribbleCollision();
+                checkGoal();
+            }
+        }
+
+        function renderGame() {
+            const ctx = GAME.ctx;
+            ctx.clearRect(0, 0, GAME.width, GAME.height);
+            drawPitch(ctx);
+            players.forEach(p => p.draw(ctx));
+            ball.draw(ctx);
+        }
+
+        function gameLoop() {
+            updateGame();
+            renderGame();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function startMatch(mode) {
+            GAME.mode = mode;
+            GAME.scoreBlue = 0;
+            GAME.scoreRed = 0;
+            GAME.timer = 90;
+            GAME.paused = false;
+
+            document.getElementById('mainMenu').classList.add('hidden');
+            document.getElementById('gameHUD').classList.remove('hidden');
+            document.getElementById('hudModeName').innerText = mode === 'MATCH' ? 'LİG MAÇI' : (mode === 'PENALTI' ? 'PENALTI' : 'ANTRENMAN');
+
+            document.getElementById('hudScoreBlue').innerText = '0';
+            document.getElementById('hudScoreRed').innerText = '0';
+
+            initTeams();
+            ball.x = GAME.width / 2;
+            ball.y = GAME.height / 2;
+
+            if (GAME.timerInterval) clearInterval(GAME.timerInterval);
+            if (mode === 'MATCH') {
+                GAME.timerInterval = setInterval(() => {
+                    if (!GAME.paused) {
+                        GAME.timer--;
+                        const mins = Math.floor(GAME.timer / 60).toString().padStart(2, '0');
+                        const secs = (GAME.timer % 60).toString().padStart(2, '0');
+                        document.getElementById('hudTimer').innerText = `${mins}:${secs}`;
+
+                        if (GAME.timer <= 0) {
+                            clearInterval(GAME.timerInterval);
+                            endMatch();
+                        }
+                    }
+                }, 1000);
+            } else {
+                document.getElementById('hudTimer').innerText = 'SERBEST';
+            }
+        }
+
+        function endMatch() {
+            GAME.paused = true;
+            const earnedXP = GAME.scoreBlue * 50 + GAME.stats.passes * 2 + 100;
+            GAME.user.xp += earnedXP;
+
+            let levelUp = false;
+            if (GAME.user.xp >= GAME.user.level * 200) {
+                GAME.user.level++;
+                GAME.user.speed += 0.05;
+                GAME.user.shot += 0.05;
+                levelUp = true;
+            }
+
+            try { localStorage.setItem('AF_USER_DATA', JSON.stringify(GAME.user)); } catch (e) { }
+            updateUserUI();
+
+            document.getElementById('stGoals').innerText = GAME.stats.goals;
+            document.getElementById('stShots').innerText = `${GAME.stats.shots} / ${GAME.stats.shotsOnTarget}`;
+            document.getElementById('stPasses').innerText = `${GAME.stats.passes} / ${GAME.stats.passesAcc}`;
+            document.getElementById('stDribbles').innerText = GAME.stats.dribbles;
+
+            const possRatio = Math.round((GAME.stats.possessionBlue / Math.max(1, GAME.stats.possessionTotal)) * 100);
+            document.getElementById('stPossession').innerText = `%${possRatio}`;
+            document.getElementById('stXPEarned').innerText = `+${earnedXP} XP`;
+
+            if (levelUp) document.getElementById('stLevelUpText').classList.remove('hidden');
+            else document.getElementById('stLevelUpText').classList.add('hidden');
+
+            document.getElementById('statsModal').classList.remove('hidden');
+        }
+
+        function updateUserUI() {
+            document.getElementById('playerLevelText').innerText = GAME.user.level;
+            document.getElementById('playerLevelBadge').innerText = GAME.user.level;
+            document.getElementById('playerXPText').innerText = GAME.user.xp;
+        }
+
+        function resizeCanvas() {
+            const canvas = GAME.canvas;
+            const container = document.getElementById('canvas-container');
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+
+            canvas.width = GAME.width;
+            canvas.height = GAME.height;
+            canvas.style.width = `${w}px`;
+            canvas.style.height = `${h}px`;
+        }
+
+        window.onload = () => {
+            GAME.canvas = document.getElementById('gameCanvas');
+            GAME.ctx = GAME.canvas.getContext('2d');
+
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            const loadingBar = document.getElementById('loadingBar');
+            loadingBar.style.width = '100%';
+            setTimeout(() => {
+                document.getElementById('splashScreen').classList.add('opacity-0');
+                setTimeout(() => {
+                    document.getElementById('splashScreen').classList.add('hidden');
+                }, 500);
+            }, 600);
+
+            document.getElementById('menuBtnOyna').onclick = () => startMatch('MATCH');
+            document.getElementById('menuBtnPenalti').onclick = () => startMatch('PENALTI');
+            document.getElementById('menuBtnAntrenman').onclick = () => startMatch('TRAINING');
+
+            document.getElementById('btnPause').onclick = () => {
+                GAME.paused = true;
+                document.getElementById('settingsModal').classList.remove('hidden');
+            };
+
+            document.getElementById('btnResumeGame').onclick = () => {
+                GAME.paused = false;
+                document.getElementById('settingsModal').classList.add('hidden');
+            };
+
+            document.getElementById('btnQuitToMenu').onclick = () => {
+                GAME.paused = false;
+                document.getElementById('settingsModal').classList.add('hidden');
+                document.getElementById('gameHUD').classList.add('hidden');
+                document.getElementById('mainMenu').classList.remove('hidden');
+                GAME.mode = 'MENU';
+            };
+
+            document.getElementById('btnStatsClose').onclick = () => {
+                document.getElementById('statsModal').classList.add('hidden');
+                document.getElementById('gameHUD').classList.add('hidden');
+                document.getElementById('mainMenu').classList.remove('hidden');
+                GAME.mode = 'MENU';
+            };
+
+            document.getElementById('toggleAudioBtn').onclick = (e) => {
+                GAME.audioEnabled = !GAME.audioEnabled;
+                e.target.innerText = GAME.audioEnabled ? 'AÇIK' : 'KAPALI';
+                e.target.className = GAME.audioEnabled ? 'px-4 py-1.5 rounded-full bg-cyan-600 font-bold text-xs text-white shadow-md' : 'px-4 py-1.5 rounded-full bg-slate-700 font-bold text-xs text-slate-300';
+            };
+
+            document.getElementById('togglePerfBtn').onclick = (e) => {
+                GAME.perfMode = !GAME.perfMode;
+                e.target.innerText = GAME.perfMode ? 'AÇIK' : 'KAPALI';
+            };
+
+            setupKeyboardEngine();
+            setupTouchEngine();
+
+            try {
+                const data = localStorage.getItem('AF_USER_DATA');
+                if (data) GAME.user = Object.assign(GAME.user, JSON.parse(data));
+            } catch (e) { }
+            updateUserUI();
+
+            gameLoop();
+        };
+    </script>
+</body>
+</html>
